@@ -1,2 +1,2 @@
-# peppermint
+# moto
 Postgres TUI

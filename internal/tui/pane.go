@@ -9,7 +9,6 @@ import (
 
 type pane struct {
 	width, height int
-	content       string
 }
 
 func (m pane) Init() tea.Cmd {

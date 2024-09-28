@@ -15,18 +15,40 @@ type split struct {
 	currOne, currTwo int
 	// max size of model one
 	maxOne int
-	// stack algorithm: horizontal or vertical
-	stack stack
+	// true if split horizontally, false if split vertically
+	h bool
+	// key to shrink model one and grow model two
+	shrinkKey string
+	// key to grow model one and shrink model two
+	growKey string
+	// d is the size of the primary dimension which is split
+	d int
+	// dOther is the size of the other dimension
+	dOther int
 }
 
-func newSplit(one, two tea.Model, minOne, minTwo int, stack stack) tea.Model {
+func horizontalSplit(one, two tea.Model, minOne, minTwo int) split {
 	return split{
-		one:    one,
-		two:    two,
-		minOne: minOne,
-		minTwo: minTwo,
-		maxOne: minOne,
-		stack:  stack,
+		one:       one,
+		two:       two,
+		minOne:    minOne,
+		minTwo:    minTwo,
+		maxOne:    minOne,
+		shrinkKey: "<",
+		growKey:   ">",
+		h:         true,
+	}
+}
+
+func verticalSplit(one, two tea.Model, minOne, minTwo int) split {
+	return split{
+		one:       one,
+		two:       two,
+		minOne:    minOne,
+		minTwo:    minTwo,
+		maxOne:    minOne,
+		shrinkKey: "-",
+		growKey:   "+",
 	}
 }
 
@@ -38,112 +60,76 @@ func (m split) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case m.stack.ShrinkKey():
-			if currOne := m.currOne - 1; currOne < m.minOne {
-				// Ignore
-				return m, nil
-			}
-			m.currOne--
-			m.maxOne--
-			m.currTwo++
-		case m.stack.GrowKey():
-			if currTwo := m.currTwo - 1; currTwo < m.minTwo {
-				// Ignore
-				return m, nil
-			}
-			m.currOne++
-			m.maxOne++
-			m.currTwo--
-		default:
-			// Ignore
-			return m, nil
+		case m.shrinkKey:
+			return m.move(-1)
+		case m.growKey:
+			return m.move(1)
 		}
 	case tea.WindowSizeMsg:
-		size := m.stack.Update(msg)
-		if size < (m.currOne + m.currTwo) {
-			// User has shrunk terminal, so shrink child models to fit.
-			m.currOne = max(m.minOne, size-m.currTwo)
-			m.currTwo = max(m.minTwo, size-m.currOne)
-		} else if size > (m.currOne + m.currTwo) {
-			// User has expanded terminal.
-			if (m.minOne + m.minTwo) > size {
-				// Still smaller than sum of minimums, so ignore
-				return m, nil
-			}
-			m.currOne = min(m.maxOne, size-m.currTwo)
-			m.currTwo = size - m.currOne
+		if m.h {
+			m.d = msg.Width
+			m.dOther = msg.Height
 		} else {
-			// no change
-			return m, nil
+			m.d = msg.Height
+			m.dOther = msg.Width
 		}
-	default:
-		return m, nil
+		m.currOne = clamp(m.d-m.currTwo, m.minOne, m.maxOne)
+		m.currTwo = max(m.minTwo, m.d-m.currOne)
+		return m.updateChildSizes()
 	}
-	// Either terminal has been resized, or user has moved split, so update
-	// child model dimensions accordingly.
-	m.one = m.stack.UpdateChildModel(m.one, m.currOne)
-	m.two = m.stack.UpdateChildModel(m.two, m.currTwo)
-	return m, nil
+	return m, m.updateChildModels(msg, msg)
+}
+
+// move the split division by delta d, shrinking and growing child models
+// accordingly.
+func (m *split) move(d int) (tea.Model, tea.Cmd) {
+	m.currOne = clamp(m.currOne+d, m.minOne, m.d-m.minTwo)
+	m.currTwo = clamp(m.currTwo-d, m.minTwo, m.d-m.minOne)
+	m.maxOne = m.currOne
+
+	return m.updateChildSizes()
+}
+
+func (m *split) updateChildSizes() (tea.Model, tea.Cmd) {
+	newWindowSizeMsg := func(size int) (msg tea.WindowSizeMsg) {
+		if m.h {
+			msg.Width = size
+			msg.Height = m.dOther
+		} else {
+			msg.Width = m.dOther
+			msg.Height = size
+		}
+		return
+	}
+	return m, m.updateChildModels(
+		newWindowSizeMsg(m.currOne),
+		newWindowSizeMsg(m.currTwo),
+	)
+}
+
+func (m *split) updateChildModels(msg1, msg2 tea.Msg) tea.Cmd {
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
+	m.one, cmd = m.one.Update(msg1)
+	cmds = append(cmds, cmd)
+	m.two, cmd = m.two.Update(msg2)
+	cmds = append(cmds, cmd)
+	return tea.Batch(cmds...)
 }
 
 func (m split) View() string {
-	return m.stack.View(m.one, m.two)
+	if m.h {
+		return lipgloss.JoinHorizontal(lipgloss.Top, m.one.View(), m.two.View())
+	} else {
+		return lipgloss.JoinVertical(lipgloss.Top, m.one.View(), m.two.View())
+	}
 }
 
-type stack interface {
-	ShrinkKey() string
-	GrowKey() string
-	// Update stack with new terminal size and return relevant terminal
-	// dimension to resize split on.
-	Update(tea.WindowSizeMsg) int
-	UpdateChildModel(tea.Model, int) tea.Model
-	View(tea.Model, tea.Model) string
-}
-
-type horizontal struct {
-	height int
-}
-
-func (m *horizontal) ShrinkKey() string { return "<" }
-func (m *horizontal) GrowKey() string   { return ">" }
-
-func (m *horizontal) Update(msg tea.WindowSizeMsg) int {
-	m.height = msg.Height
-	return msg.Width
-}
-
-func (m *horizontal) UpdateChildModel(child tea.Model, width int) tea.Model {
-	child, _ = child.Update(tea.WindowSizeMsg{
-		Width:  width,
-		Height: m.height,
-	})
-	return child
-}
-
-func (m *horizontal) View(one, two tea.Model) string {
-	return lipgloss.JoinHorizontal(lipgloss.Top, one.View(), two.View())
-}
-
-type vertical struct {
-	width int
-}
-
-func (m *vertical) ShrinkKey() string { return "-" }
-func (m *vertical) GrowKey() string   { return "+" }
-
-func (m *vertical) Update(msg tea.WindowSizeMsg) int {
-	m.width = msg.Width
-	return msg.Height
-}
-
-func (m *vertical) UpdateChildModel(child tea.Model, height int) tea.Model {
-	child, _ = child.Update(tea.WindowSizeMsg{
-		Width:  m.width,
-		Height: height,
-	})
-	return child
-}
-
-func (m *vertical) View(one, two tea.Model) string {
-	return lipgloss.JoinVertical(lipgloss.Top, one.View(), two.View())
+func clamp(v, low, high int) int {
+	if high < low {
+		low, high = high, low
+	}
+	return min(high, max(low, v))
 }

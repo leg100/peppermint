@@ -11,16 +11,14 @@ type model struct {
 
 func New() model {
 	return model{
-		split: newSplit(
+		split: horizontalSplit(
 			pane{},
-			newSplit(
+			verticalSplit(
 				pane{},
 				pane{},
 				10, 10,
-				&vertical{},
 			),
 			10, 10,
-			&horizontal{},
 		),
 	}
 }

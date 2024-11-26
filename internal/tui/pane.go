@@ -8,6 +8,7 @@ import (
 )
 
 type pane struct {
+	n             int
 	width, height int
 }
 
@@ -25,9 +26,5 @@ func (m pane) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m pane) View() string {
-	return lipgloss.NewStyle().Border(
-		lipgloss.RoundedBorder(),
-	).Render(
-		lipgloss.Place(m.width-2, m.height-2, lipgloss.Center, lipgloss.Center, fmt.Sprintf("%dx%d", m.width, m.height)),
-	)
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, fmt.Sprintf("%d(%dx%d)", m.n, m.width, m.height))
 }

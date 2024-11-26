@@ -3,13 +3,14 @@ package tui
 import "github.com/charmbracelet/bubbles/key"
 
 type keyMap struct {
-	ExplorerFullScreen    key.Binding
-	TogglePreview         key.Binding
-	ShrinkVerticalSplit   key.Binding
-	GrowVerticalSplit     key.Binding
-	ShrinkHorizontalSplit key.Binding
-	GrowHorizontalSplit   key.Binding
-	SwitchPane            key.Binding
+	ExplorerFullScreen key.Binding
+	TogglePreview      key.Binding
+	ShrinkPaneHeight   key.Binding
+	GrowPaneHeight     key.Binding
+	ShrinkPaneWidth    key.Binding
+	GrowPaneWidth      key.Binding
+	SwitchPane         key.Binding
+	ClosePane          key.Binding
 }
 
 var Keys = keyMap{
@@ -21,24 +22,28 @@ var Keys = keyMap{
 		key.WithKeys("P"),
 		key.WithHelp("P", "toggle preview"),
 	),
-	ShrinkVerticalSplit: key.NewBinding(
+	ShrinkPaneHeight: key.NewBinding(
 		key.WithKeys("-"),
-		key.WithHelp("-", "shink vertical split"),
+		key.WithHelp("-", "shrink pane height"),
 	),
-	GrowVerticalSplit: key.NewBinding(
+	GrowPaneHeight: key.NewBinding(
 		key.WithKeys("+"),
-		key.WithHelp("+", "grow vertical split"),
+		key.WithHelp("+", "grow pane height"),
 	),
-	ShrinkHorizontalSplit: key.NewBinding(
+	ShrinkPaneWidth: key.NewBinding(
 		key.WithKeys("<"),
-		key.WithHelp("<", "shink horizontal split"),
+		key.WithHelp("<", "shrink pane width"),
 	),
-	GrowHorizontalSplit: key.NewBinding(
+	GrowPaneWidth: key.NewBinding(
 		key.WithKeys(">"),
-		key.WithHelp(">", "grow horizontal split"),
+		key.WithHelp(">", "grow pane width"),
 	),
 	SwitchPane: key.NewBinding(
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "switch pane"),
+	),
+	ClosePane: key.NewBinding(
+		key.WithKeys("x"),
+		key.WithHelp("x", "close pane"),
 	),
 }

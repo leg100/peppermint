@@ -6,19 +6,15 @@ import (
 )
 
 type model struct {
-	split tea.Model
+	paner tea.Model
 }
 
 func New() model {
 	return model{
-		split: horizontalSplit(
-			pane{},
-			verticalSplit(
-				pane{},
-				pane{},
-				10, 10,
-			),
-			10, 10,
+		paner: newPaner(
+			pane{n: 0},
+			pane{n: 1},
+			pane{n: 2},
 		),
 	}
 }
@@ -35,10 +31,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
-	m.split, _ = m.split.Update(msg)
+	m.paner, _ = m.paner.Update(msg)
 	return m, nil
 }
 
 func (m model) View() string {
-	return m.split.View()
+	return m.paner.View()
 }
